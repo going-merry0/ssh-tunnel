@@ -124,6 +124,13 @@ log_user 0
 spawn -ignore HUP $cmd
 
 expect {
+  eof { send_user "\nssh failure for $host, please check you network\n"; exit 1 }
+  "*continue connecting (yes/no)?" {
+    send "yes\r"
+  }
+}
+
+expect {
   timeout { send_user "\nunable to get password prompt\n"; exit 1 }
   eof { send_user "\nssh failure for $host, please check you network\n"; exit 1 }
   "*assword" {
