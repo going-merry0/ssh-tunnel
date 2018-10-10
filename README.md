@@ -2,8 +2,13 @@
 
 Scripts for simplifying management of [SSH Dynamic Tunnel](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding#Dynamic_Port_Forwarding).
 
+Only supports ubuntu now.
+
 ## Install
 
+```bash
+wget -qO- https://raw.githubusercontent.com/hsiaosiyuan0/ssh-tunnel/master/install.sh | bash
+```
 
 ## Usage
 
@@ -17,7 +22,7 @@ Option | Meaning
 --pass | remote ssh password
 --key  | file path of the private key of remote ssh
 --listen | local port
---action | start | stop | restart
+--action | start \| stop \| restart
 
 ```bash
 # choose to use password to do login
