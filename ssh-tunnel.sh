@@ -11,7 +11,7 @@ listen=""
 
 parse_opts() {
 
-  local options=$(getopt -l "host:,port:,user:,pass:,key:,listen:,action:" -o -a -- $args)
+  local options=$($GETOPT_CMD -l "host:,port:,user:,pass:,key:,listen:,action:" -o -a -- $args)
 
   if [ $? -eq 1 ]; then
     exit 1;
@@ -51,7 +51,7 @@ has_cfg() {
 ensure_cfg() {
   if ! has_cfg; then
     echo "no config found, please setup before use"
-    exit 1  else
+    exit 1
   fi
 }
 
@@ -124,7 +124,7 @@ log_user 0
 spawn -ignore HUP $cmd
 
 expect {
-  eof { send_user "\nssh failure for $host, please check you network\n"; exit 1 }
+  eof { send_user "\nssh failure for $host, please check you login info or network\n"; exit 1 }
   "*continue connecting (yes/no)?" {
     send "yes\r"
   }
@@ -145,17 +145,26 @@ EOF
     eval $cmd
   fi
 
-  local pid=$(get_pid "$cmd")
-  echo "ssh-tunnel is running"
+  if [ $? != 0 ]; then
+    echo "abort"
+    exit 1
+  fi
+
+  if is_running; then
+    local pid=$(get_pid "$cmd")
+    echo "ssh-tunnel is running, pid: $pid"
+  else
+    echo "failed to start, please check your login info or network"
+  fi
 }
 
 stop() {
   echo "stopping..."
   . $CFG_FILE > /dev/null 2>&1
   if [ "$cmd" != "" ]; then
-    readarray -t pids <<< $(pgrep -f "$cmd")
+    IFS=$'\n' read -rd '' -a pids <<< "$(pgrep -f "$cmd")"
     for pid in "${pids[@]}"; do
-      echo "killing pid: $pid"
+      echo "killing PID: $pid"
       if [ "$pid" != "" ]; then
         kill $pid > /dev/null 2>&1
       fi
@@ -182,11 +191,56 @@ has_cmd() {
   type "$1" > /dev/null 2>&1
 }
 
+has_brew_pkg() {
+  brew ls --versions "$1" > /dev/null 2>&1
+}
+
+is_osx() {
+  if [ "$(uname)" == "Darwin" ]; then
+    return 0;
+  else
+    return 1;
+  fi
+}
+
+is_ubuntu() {
+  has_cmd apt
+}
+
+GETOPT_CMD=getopt
+
 prepare_cmd() {
-  declare -gx a=1
+  if is_osx; then
+    if ! has_cmd brew; then
+      echo "You'd install brew first, see https://brew.sh/"
+      exit 1
+    fi
+
+    if ! has_brew_pkg gnu-getopt; then
+      echo "installing gnu-getopt"
+      brew install gnu-getopt
+    fi
+
+    GETOPT_CMD=$(brew --prefix gnu-getopt)/bin/getopt
+  fi
+
   if ! has_cmd expect; then
     echo "expect is not installed, try to install..."
-    sudo apt install -y expect
+    install_cmd expect
+  fi
+}
+
+install_cmd() {
+  if is_ubuntu; then
+    sudo apt install -y $1
+  elif is_osx; then
+    if ! has_cmd brew; then
+      echo "You'd install brew first, see https://brew.sh/"
+      exit 1
+    fi
+    brew install $1
+  else
+    echo "you'd install $1 manually"
   fi
 }
 
